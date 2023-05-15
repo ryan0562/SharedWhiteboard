@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "ws": "^8.13.0"
+  },
+  "scripts": {
+    "dev":"http-server",
+    "ws":"node ws.js"
+  }
+}

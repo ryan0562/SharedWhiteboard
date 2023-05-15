@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <script src="https://unpkg.com/konva@9.0.2/konva.min.js"></script>
+  <meta charset="utf-8" />
+  <title>Konva Free Drawing Demo</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #f0f0f0;
+    }
+  </style>
+</head>
+
+<body>
+  Tool:
+  <input type="text" value="111" id="name">
+  <select id="tool">
+    <option value="brush">Brush</option>
+    <option value="eraser">Eraser</option>
+  </select>
+  <div id="container"></div>
+  <script>
+    const socket = new WebSocket('ws://10.168.7.231:8081');
+    // 链接时
+    socket.addEventListener('open', (event) => {
+    });
+    // 监听信息
+    socket.addEventListener('message', (event) => {
+      const message = JSON.parse(event.data);
+
+      switch (message.type) {
+        case 'steps':
+          debugger
+          // let totalPoints = []
+          message.data.forEach((item) => {
+            // const parseItem = JSON.parse(item)
+            if (item.type === 'draw') {
+              // const pot = parseItem.data;
+              // totalPoints = totalPoints.concat([pot.x, pot.y]);
+              initDraw(item.data)
+            }
+          });
+          // initDraw(totalPoints)
+          break;
+        case 'draw':
+          freeDraw(message.data);
+          break;
+        case 'mousePoints':
+          // freeDraw(message.data);
+          break;
+        // Add more cases to handle other message types
+      }
+    });
+  </script>
+  <script>
+    var width = window.innerWidth;
+    var height = window.innerHeight - 25;
+
+    // first we need Konva core things: stage and layer
+    var stage = new Konva.Stage({
+      container: 'container',
+      width: width,
+      height: height,
+    });
+
+    var layer = new Konva.Layer();
+    stage.add(layer);
+
+    var mouseLayour = new Konva.Layer();
+    stage.add(mouseLayour);
+
+    var isPaint = false;
+    var mode = 'brush';
+    var lastLine;
+
+    stage.on('mousedown touchstart', function (e) {
+      isPaint = true;
+      var pos = stage.getPointerPosition();
+      lastLine = new Konva.Line({
+        stroke: '#df4b26',
+        strokeWidth: 5,
+        globalCompositeOperation:
+          mode === 'brush' ? 'source-over' : 'destination-out',
+        // round cap for smoother lines
+        lineCap: 'round',
+        lineJoin: 'round',
+        // add point twice, so we have some drawings even on a simple click
+        points: [pos.x, pos.y, pos.x, pos.y],
+      });
+      layer.add(lastLine);
+    });
+
+    // 鼠标抬起
+    stage.on('mouseup touchend', function () {
+      isPaint = false;
+
+      console.log(lastLine)
+      socket.send(JSON.stringify({
+        type: 'steps',
+        data: {
+          type:'draw',
+          data:lastLine.points(),
+        }
+      }));
+    });
+
+    //鼠标移动
+    stage.on('mousemove touchmove', function (e) {
+      const pos = stage.getPointerPosition();
+      // 记录鼠标点位
+      // socket.send(JSON.stringify({
+      //   type: 'mousePoint',
+      //   data: {
+      //     name: '111',
+      //     pos,
+      //   }
+      // }));
+
+      if (!isPaint) {
+        return;
+      }
+
+      // prevent scrolling on touch devices
+      e.evt.preventDefault();
+      // 鼠标自由绘图
+      socket.send(JSON.stringify({
+        type: 'draw',
+        data: pos
+      }));
+        
+    });
+
+    var select = document.getElementById('tool');
+    select.addEventListener('change', function () {
+      mode = select.value;
+    });
+
+    function freeDraw(pot) {
+      var newPoints = lastLine.points().concat([pot.x, pot.y]);
+      // console.log(lastLine.points())
+      lastLine.points(newPoints);
+    }
+    // 初始化自由绘制
+    function initDraw(points) {
+      
+      lastLine = new Konva.Line({
+        stroke: '#df4b26',
+        strokeWidth: 5,
+        globalCompositeOperation:
+          mode === 'brush' ? 'source-over' : 'destination-out',
+        // round cap for smoother lines
+        lineCap: 'round',
+        lineJoin: 'round',
+        // add point twice, so we have some drawings even on a simple click
+        points:points
+      });
+
+      layer.add(lastLine);
+    }
+    function initMouse(points) {
+      var mou = new Konva.Text({
+        x: 10,
+        y: 15,
+        text: 'Simple Text',
+        fontSize: 30,
+        fontFamily: 'Calibri',
+        fill: 'green'
+      });
+      mouseLayour.add(lastLine);
+    }
+  </script>
+
+</body>
+
+</html>

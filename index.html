@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <title>共享白板</title>
+  <script src="https://unpkg.com/konva@9.0.2/konva.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="container"></div>
+</body>
+<script>
+  var width = window.innerWidth;
+  var height = window.innerHeight - 25;
+
+  // first we need Konva core things: stage and layer
+  var stage = new Konva.Stage({
+    container: 'container',
+    width: width,
+    height: height,
+  });
+
+  var layer = new Konva.Layer();
+  stage.add(layer);
+
+  // then we are going to draw into special canvas element
+  var canvas = document.createElement('canvas');
+  canvas.width = stage.width();
+  canvas.height = stage.height();
+
+  // created canvas we can add to layer as "Konva.Image" element
+  var image = new Konva.Image({
+    image: canvas,
+    x: 0,
+    y: 0,
+  });
+  layer.add(image);
+
+  // Good. Now we need to get access to context element
+  var context = canvas.getContext('2d');
+  context.strokeStyle = '#df4b26';
+  context.lineJoin = 'round';
+  context.lineWidth = 5;
+
+  var isPaint = false;
+  var lastPointerPosition;
+  var mode = 'brush';
+  
+
+  // now we need to bind some events
+  // we need to start drawing on mousedown
+  // and stop drawing on mouseup
+  image.on('mousedown touchstart', function () {
+    isPaint = true;
+    lastPointerPosition = stage.getPointerPosition();
+  });
+
+  // will it be better to listen move/end events on the window?
+
+  stage.on('mouseup touchend', function () {
+    isPaint = false;
+  });
+
+  // and core function - drawing
+  stage.on('mousemove touchmove', function () {
+    if (!isPaint) {
+      return;
+    }
+    var localPos = {
+      x: lastPointerPosition.x,
+      y: lastPointerPosition.y,
+    };
+    socket.send(JSON.stringify({
+      type: 'draw',
+      data: localPos
+    }));
+    // freeDraw();
+  });
+
+  
+
+  function freeDraw(localPos) {
+
+    // if (!isPaint) {
+    //   return;
+    // }
+
+    // if (mode === 'brush') {
+    //   context.globalCompositeOperation = 'source-over';
+    // }
+    // if (mode === 'eraser') {
+    //   context.globalCompositeOperation = 'destination-out';
+    // }
+    context.beginPath();
+
+    var localPos = {
+      x: localPos.x - image.x(),
+      y: localPos.y - image.y(),
+    };
+    // console.log(localPos.x, localPos.y);
+    context.moveTo(localPos.x, localPos.y);
+    var pos = stage.getPointerPosition();
+    localPos = {
+      x: pos.x - image.x(),
+      y: pos.y - image.y(),
+    };
+    context.lineTo(localPos.x, localPos.y);
+    
+    context.closePath();
+    context.stroke();
+
+    lastPointerPosition = pos;
+    // redraw manually
+    layer.batchDraw();
+  }
+</script>
+<script>
+   const socket = new WebSocket('ws://10.168.7.231:8081');
+  socket.addEventListener('open', () => {
+  });
+  socket.addEventListener('message', (event) => {
+    const message = JSON.parse(event.data);
+    switch (message.type) {
+      case 'init':
+        message.data.forEach((item) => {
+          const parseItem = JSON.parse(item)
+          freeDraw(parseItem.data);
+        });
+        break;
+      case 'draw':
+      freeDraw(message.data);
+        break;
+      // Add more cases to handle other message types
+    }
+  });
+</script>
+<!-- <script>
+  // const canvas = document.getElementById('container');
+  var stage = new Konva.Stage({
+    container: 'container'
+  });
+  var layer = new Konva.Layer();
+  stage.add(layer);
+
+  const socket = new WebSocket('ws://10.168.7.231:8081');
+  socket.addEventListener('open', () => {
+    // const username = document.getElementById('username').value;
+    // socket.send(JSON.stringify({
+    //   type: 'username',
+    //   data: username
+    // }));
+  });
+  let isDrawing = false;
+  let lastX = 0;
+  let lastY = 0;
+
+  canvas.addEventListener('mousedown', (event) => {
+    isDrawing = true;
+    lastX = event.clientX;
+    lastY = event.clientY;
+  });
+
+  canvas.addEventListener('mousemove', (event) => {
+    if (!isDrawing) return;
+    const x = event.clientX;
+    const y = event.clientY;
+    socket.send(JSON.stringify({
+      type: 'draw',
+      data: {
+        x: x,
+        y: y,
+        lastX: lastX,
+        lastY: lastY
+      }
+    }));
+    lastX = x;
+    lastY = y;
+  });
+
+  canvas.addEventListener('mouseup', () => {
+    isDrawing = false;
+  });
+  socket.addEventListener('message', (event) => {
+    const message = JSON.parse(event.data);
+    switch (message.type) {
+      case 'init':
+        message.data.forEach((item) => {
+          const parseItem = JSON.parse(item)
+          freeDraw(parseItem.data.x, parseItem.data.y, parseItem.data.lastX, parseItem.data.lastY);
+        });
+        break;
+      case 'draw':
+      freeDraw(message.data.x, message.data.y, message.data.lastX, message.data.lastY);
+        break;
+      // Add more cases to handle other message types
+    }
+  });
+
+  function drawLine(x, y, lastX, lastY) {
+    const context = canvas.getContext('2d');
+    context.beginPath();
+    context.strokeStyle = 'red';
+    context.lineWidth = 2;
+    context.moveTo(lastX, lastY);
+    context.lineTo(x, y);
+    context.stroke();
+  }
+</script> -->
+
+</html>
