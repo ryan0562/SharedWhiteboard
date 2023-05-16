@@ -2,13 +2,18 @@ const WebSocket = require('ws');
 const wss = new WebSocket.Server({ port: 8081 });
 
 let drawings = []; // 存储绘制数据的数组
-let mousePoints = {} // 存储鼠标坐标
 let steps = []; //存储步奏
-
+let clientId = 0;
 
 wss.on('connection', (ws) => {
   // 初始化时返回步奏，给与绘制
-  const init = { type: 'steps', data: steps }
+  const init = {
+    type: 'init',
+    data: {
+      clientId: clientId++,
+      steps: steps
+    }
+  }
   ws.send(JSON.stringify(init));
 
   ws.on('error', console.error);
@@ -16,7 +21,7 @@ wss.on('connection', (ws) => {
   ws.on('message', function message(message) {
     const data = message.toString()
     const parseData = JSON.parse(message.toString());
-    wss.clients.forEach((client)=> {
+    wss.clients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
         switch (parseData.type) {
           // 实时绘画
@@ -35,8 +40,8 @@ wss.on('connection', (ws) => {
             break;
           // 实时鼠标点位
           case 'mousePoint':
-            mousePoints[parseData.name] = parseData.pos;
-            client.send(mousePoints);
+            client.send(data);
+
             break;
           default:
             break;

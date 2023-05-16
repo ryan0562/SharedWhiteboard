@@ -19,52 +19,74 @@
   Tool:
   <input type="text" value="111" id="name">
   <select id="tool">
-    <option value="brush">Brush</option>
-    <option value="eraser">Eraser</option>
+    <option value="source-over">Brush</option>
+    <option value="destination-out">Eraser</option>
   </select>
+  <button id="pre">上一步</button>
+  <button id="next">下一步</button>
   <div id="container"></div>
   <script>
+    let clients = {};
+    const nameDOM = document.getElementById('name');
+    let clientId = null;
+    let clientName = nameDOM.value;
+    nameDOM.addEventListener('change', function () {
+      clientName = nameDOM.value;
+    });
+
     const socket = new WebSocket('ws://10.168.7.231:8081');
     // 链接时
     socket.addEventListener('open', (event) => {
+
     });
     // 监听信息
     socket.addEventListener('message', (event) => {
       const message = JSON.parse(event.data);
 
       switch (message.type) {
-        case 'steps':
-
+        // 初始化
+        case 'init':
+          // 从服务器获取客户端ID
+          clientId = message.data.clientId;
+          // 获取已展示的进度条
+          const steps = message.data.steps;
           // let totalPoints = []
-          message.data.forEach((item) => {
+          steps.forEach((item) => {
             // const parseItem = JSON.parse(item)
             if (item.type === 'draw') {
-              // const pot = parseItem.data;
-              // totalPoints = totalPoints.concat([pot.x, pot.y]);
               initDraw(item.data)
             }
           });
-
-          // initDraw(totalPoints)
           break;
-
+        // 鼠标按下
         case 'mousedown':
-          stageMousedownHandle()
+          stageMousedownHandle(message.data)
           break;
+        // 鼠标抬起
         case 'mouseup':
-          stageMouseupHandle()
+          stageMouseupHandle(message.data)
           break;
+        // 自由绘画、擦除
         case 'draw':
           freeDraw(message.data);
           break;
-        case 'mousePoints':
-          // freeDraw(message.data);
+        // 鼠标坐标
+        case 'mousePoint':
+          initMouse(message.data);
           break;
         // Add more cases to handle other message types
       }
     });
   </script>
   <script>
+    let lineAttrs = {
+      stroke: '#df4b26',
+      strokeWidth: 5,
+      globalCompositeOperation: 'source-over',
+      lineCap: 'round',
+      lineJoin: 'round',
+    }
+
     var width = window.innerWidth;
     var height = window.innerHeight - 25;
 
@@ -88,25 +110,20 @@
 
 
     // 鼠标按下
-    function stageMousedownHandle(e) {
+    function stageMousedownHandle({ attrs }) {
+
       isPaint = true;
       var pos = stage.getPointerPosition();
-      lastLine = new Konva.Line({
-        stroke: '#df4b26',
-        strokeWidth: 5,
-        globalCompositeOperation:
-          mode === 'brush' ? 'source-over' : 'destination-out',
-        // round cap for smoother lines
-        lineCap: 'round',
-        lineJoin: 'round',
-        // add point twice, so we have some drawings even on a simple click
-        // points: [pos.x, pos.y, pos.x, pos.y],
-      });
+      lastLine = new Konva.Line(attrs);
       layer.add(lastLine);
     }
+    // 按下
     stage.on('mousedown touchstart', (e) => {
       socket.send(JSON.stringify({
-        type: 'mousedown'
+        type: 'mousedown',
+        data: {
+          attrs: lineAttrs
+        }
       }));
     })
 
@@ -121,7 +138,7 @@
         type: 'steps',
         data: {
           type: 'draw',
-          data: lastLine.points(),
+          data: lastLine,
         }
       }));
       socket.send(JSON.stringify({
@@ -133,13 +150,14 @@
     stage.on('mousemove touchmove', function (e) {
       const pos = stage.getPointerPosition();
       // 记录鼠标点位
-      // socket.send(JSON.stringify({
-      //   type: 'mousePoint',
-      //   data: {
-      //     name: '111',
-      //     pos,
-      //   }
-      // }));
+      socket.send(JSON.stringify({
+        type: 'mousePoint',
+        data: {
+          clientId,
+          clientName,
+          pos,
+        }
+      }));
 
       if (!isPaint) {
         return;
@@ -150,14 +168,15 @@
       // 鼠标自由绘图
       socket.send(JSON.stringify({
         type: 'draw',
-        data: pos
+        data: pos,
+        // attrs: lastLine.attrs,
       }));
 
     });
 
     var select = document.getElementById('tool');
     select.addEventListener('change', function () {
-      mode = select.value;
+      lineAttrs.globalCompositeOperation = select.value;
     });
 
     function freeDraw(pot) {
@@ -165,35 +184,56 @@
       lastLine.points(newPoints);
     }
     // 初始化自由绘制
-    function initDraw(points) {
+    function initDraw(data) {
+      const parseData = JSON.parse(data);
+      // debugger
+      // const points = parseData.points;
+      const attrs = parseData.attrs;
 
-      lastLine = new Konva.Line({
-        stroke: '#df4b26',
-        strokeWidth: 5,
-        globalCompositeOperation:
-          mode === 'brush' ? 'source-over' : 'destination-out',
-        // round cap for smoother lines
-        lineCap: 'round',
-        lineJoin: 'round',
-        // add point twice, so we have some drawings even on a simple click
-        points: points
-      });
+      lastLine = new Konva.Line(attrs);
 
       layer.add(lastLine);
     }
-    function initMouse(points) {
-      var mou = new Konva.Text({
-        x: 10,
-        y: 15,
-        text: 'Simple Text',
-        fontSize: 30,
-        fontFamily: 'Calibri',
-        fill: 'green'
-      });
-      mouseLayour.add(lastLine);
+    function initMouse(mouseData) {
+      const id = mouseData.clientId;
+      const name = mouseData.clientName;
+      const pos = mouseData.pos;
+      // if (clients[id]) {
+      //   clients[id].x(pos.x)
+      //   clients[id].y(pos.y)
+      // } else {
+      //   clients[id] = new Konva.Text({
+      //     x: pos.x,
+      //     y: pos.y,
+      //     text: name,
+      //     fontSize: 30,
+      //     fontFamily: 'Calibri',
+      //     fill: 'green'
+      //   });
+      //   mouseLayour.add(clients[id]);
+      // }
+      const jgb_width = 30;
+      const jgb_height = 30;
+
+      if (clients[id]) {
+        clients[id].x(pos.x - jgb_width / 2)
+        clients[id].y(pos.y - jgb_height / 2)
+      } else {
+        Konva.Image.fromURL('./images/jgb.svg', function (svg) {
+          svg.setAttrs({
+            x: pos.x - jgb_width / 2,
+            y: pos.y - jgb_height / 2,
+            width: jgb_width,
+            height: jgb_height,
+          });
+
+          clients[id] = svg;
+          mouseLayour.add(clients[id]);
+        });
+      }
+
     }
   </script>
-
 </body>
 
 </html>
