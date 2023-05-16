@@ -44,6 +44,7 @@
               initDraw(item.data)
             }
           });
+
           // initDraw(totalPoints)
           break;
         case 'draw':
@@ -77,7 +78,9 @@
     var mode = 'brush';
     var lastLine;
 
-    stage.on('mousedown touchstart', function (e) {
+
+    // 鼠标按下
+    function stageMousedownHandle(e) {
       isPaint = true;
       var pos = stage.getPointerPosition();
       lastLine = new Konva.Line({
@@ -92,7 +95,8 @@
         points: [pos.x, pos.y, pos.x, pos.y],
       });
       layer.add(lastLine);
-    });
+    }
+    stage.on('mousedown touchstart', stageMousedownHandle)
 
     // 鼠标抬起
     stage.on('mouseup touchend', function () {
@@ -102,8 +106,8 @@
       socket.send(JSON.stringify({
         type: 'steps',
         data: {
-          type:'draw',
-          data:lastLine.points(),
+          type: 'draw',
+          data: lastLine.points(),
         }
       }));
     });
@@ -131,7 +135,7 @@
         type: 'draw',
         data: pos
       }));
-        
+
     });
 
     var select = document.getElementById('tool');
@@ -140,13 +144,29 @@
     });
 
     function freeDraw(pot) {
+      // console.log(lastLine.points().concat([pot.x, pot.y]));
+      // if(!lastLine){
+      //   lastLine = new Konva.Line({
+      //   stroke: '#df4b26',
+      //   strokeWidth: 5,
+      //   globalCompositeOperation:
+      //     mode === 'brush' ? 'source-over' : 'destination-out',
+      //   // round cap for smoother lines
+      //   lineCap: 'round',
+      //   lineJoin: 'round',
+      //   // add point twice, so we have some drawings even on a simple click
+      //   points: lastLine.points().concat([pot.x, pot.y])
+      // });
+      // layer.add(lastLine);
+      // }else {
       var newPoints = lastLine.points().concat([pot.x, pot.y]);
       // console.log(lastLine.points())
       lastLine.points(newPoints);
+      // }
     }
     // 初始化自由绘制
     function initDraw(points) {
-      
+
       lastLine = new Konva.Line({
         stroke: '#df4b26',
         strokeWidth: 5,
@@ -156,10 +176,12 @@
         lineCap: 'round',
         lineJoin: 'round',
         // add point twice, so we have some drawings even on a simple click
-        points:points
+        points: points
       });
 
       layer.add(lastLine);
+
+      lastLine = null
     }
     function initMouse(points) {
       var mou = new Konva.Text({
