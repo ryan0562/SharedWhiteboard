@@ -219,17 +219,42 @@
         clients[id].x(pos.x - jgb_width / 2)
         clients[id].y(pos.y - jgb_height / 2)
       } else {
+
+        // const img = new Image();
+        // img.src = './images/jgb.svg';
+
+        // img.onload = function () {
+        //   new Konva.Image({
+        //     x: 0,
+        //     y: 0,
+        //     image: img,
+        //     width: 100,
+        //     height: 100
+        //   });
+        // };
+
+        const text = new Konva.Text({
+          y: -10,
+          text: name,
+          fontSize: 18,
+          fill: 'green'
+        });
+
         Konva.Image.fromURL('./images/jgb.svg', function (svg) {
           svg.setAttrs({
-            x: pos.x - jgb_width / 2,
-            y: pos.y - jgb_height / 2,
             width: jgb_width,
             height: jgb_height,
           });
 
-          clients[id] = svg;
+
+          const group = new Konva.Group();
+          group.add(text);
+          group.add(svg);
+
+          clients[id] = group
           mouseLayour.add(clients[id]);
         });
+
       }
 
     }
