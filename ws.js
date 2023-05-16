@@ -24,6 +24,11 @@ wss.on('connection', (ws) => {
             drawings.push(parseData);
             client.send(data);
             break;
+          // 鼠标按下、抬起
+          case 'mouseup':
+          case 'mousedown':
+            client.send(data);
+            break;
           // 存储步奏
           case 'steps':
             steps.push(parseData.data);

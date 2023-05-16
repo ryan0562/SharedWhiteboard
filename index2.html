@@ -34,7 +34,7 @@
 
       switch (message.type) {
         case 'steps':
-          debugger
+
           // let totalPoints = []
           message.data.forEach((item) => {
             // const parseItem = JSON.parse(item)
@@ -46,6 +46,13 @@
           });
 
           // initDraw(totalPoints)
+          break;
+
+        case 'mousedown':
+          stageMousedownHandle()
+          break;
+        case 'mouseup':
+          stageMouseupHandle()
           break;
         case 'draw':
           freeDraw(message.data);
@@ -79,6 +86,7 @@
     var lastLine;
 
 
+
     // 鼠标按下
     function stageMousedownHandle(e) {
       isPaint = true;
@@ -92,23 +100,32 @@
         lineCap: 'round',
         lineJoin: 'round',
         // add point twice, so we have some drawings even on a simple click
-        points: [pos.x, pos.y, pos.x, pos.y],
+        // points: [pos.x, pos.y, pos.x, pos.y],
       });
       layer.add(lastLine);
     }
-    stage.on('mousedown touchstart', stageMousedownHandle)
+    stage.on('mousedown touchstart', (e) => {
+      socket.send(JSON.stringify({
+        type: 'mousedown'
+      }));
+    })
 
     // 鼠标抬起
-    stage.on('mouseup touchend', function () {
+    function stageMouseupHandle(e) {
       isPaint = false;
+    }
+    // 鼠标抬起
+    stage.on('mouseup touchend', function () {
 
-      console.log(lastLine)
       socket.send(JSON.stringify({
         type: 'steps',
         data: {
           type: 'draw',
           data: lastLine.points(),
         }
+      }));
+      socket.send(JSON.stringify({
+        type: 'mouseup',
       }));
     });
 
@@ -144,25 +161,8 @@
     });
 
     function freeDraw(pot) {
-      // console.log(lastLine.points().concat([pot.x, pot.y]));
-      // if(!lastLine){
-      //   lastLine = new Konva.Line({
-      //   stroke: '#df4b26',
-      //   strokeWidth: 5,
-      //   globalCompositeOperation:
-      //     mode === 'brush' ? 'source-over' : 'destination-out',
-      //   // round cap for smoother lines
-      //   lineCap: 'round',
-      //   lineJoin: 'round',
-      //   // add point twice, so we have some drawings even on a simple click
-      //   points: lastLine.points().concat([pot.x, pot.y])
-      // });
-      // layer.add(lastLine);
-      // }else {
       var newPoints = lastLine.points().concat([pot.x, pot.y]);
-      // console.log(lastLine.points())
       lastLine.points(newPoints);
-      // }
     }
     // 初始化自由绘制
     function initDraw(points) {
@@ -180,8 +180,6 @@
       });
 
       layer.add(lastLine);
-
-      lastLine = null
     }
     function initMouse(points) {
       var mou = new Konva.Text({
