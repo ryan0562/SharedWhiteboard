@@ -37,8 +37,13 @@
     const socket = new WebSocket('ws://10.168.7.231:8081');
     // 链接时
     socket.addEventListener('open', (event) => {
-
+      // socket.send(JSON.stringify({ type: 'init' }))
     });
+
+    window.addEventListener('beforeunload', function (event) {
+      socket.send(JSON.stringify({ type: 'closed', data: { clientId } }))
+    });
+
     // 监听信息
     socket.addEventListener('message', (event) => {
       const message = JSON.parse(event.data);
@@ -57,6 +62,10 @@
               initDraw(item.data)
             }
           });
+          break;
+        // 关闭
+        case 'closed':
+          closed(message.data)
           break;
         // 鼠标按下
         case 'mousedown':
@@ -198,20 +207,7 @@
       const id = mouseData.clientId;
       const name = mouseData.clientName;
       const pos = mouseData.pos;
-      // if (clients[id]) {
-      //   clients[id].x(pos.x)
-      //   clients[id].y(pos.y)
-      // } else {
-      //   clients[id] = new Konva.Text({
-      //     x: pos.x,
-      //     y: pos.y,
-      //     text: name,
-      //     fontSize: 30,
-      //     fontFamily: 'Calibri',
-      //     fill: 'green'
-      //   });
-      //   mouseLayour.add(clients[id]);
-      // }
+
       const jgb_width = 30;
       const jgb_height = 30;
 
@@ -219,23 +215,9 @@
         clients[id].x(pos.x - jgb_width / 2)
         clients[id].y(pos.y - jgb_height / 2)
       } else {
-
-        // const img = new Image();
-        // img.src = './images/jgb.svg';
-
-        // img.onload = function () {
-        //   new Konva.Image({
-        //     x: 0,
-        //     y: 0,
-        //     image: img,
-        //     width: 100,
-        //     height: 100
-        //   });
-        // };
-
         const text = new Konva.Text({
           y: -10,
-          text: name,
+          text: id,
           fontSize: 18,
           fill: 'green'
         });
@@ -257,6 +239,12 @@
 
       }
 
+    }
+
+    // 断开链接
+    function closed(data) {
+      const id = data.clientId;
+      clients[id].remove();
     }
   </script>
 </body>

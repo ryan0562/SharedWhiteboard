@@ -3,10 +3,9 @@ const wss = new WebSocket.Server({ port: 8081 });
 
 let drawings = []; // 存储绘制数据的数组
 let steps = []; //存储步奏
-let clientId = 0;
+let clientId = 0; //客户端ID
 
 wss.on('connection', (ws) => {
-  // 初始化时返回步奏，给与绘制
   const init = {
     type: 'init',
     data: {
@@ -24,6 +23,10 @@ wss.on('connection', (ws) => {
     wss.clients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
         switch (parseData.type) {
+          // 断开
+          case 'closed':
+            client.send(data);
+            break;
           // 实时绘画
           case 'draw':
             drawings.push(parseData);
